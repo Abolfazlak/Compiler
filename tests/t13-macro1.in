@@ -3,3 +3,5 @@ define FOR100 for(i = 0; i < 100; i += 1)
 
 FOR100
 Print(i)SEMICOLON
+// this is a single line comment
+this is not a comment

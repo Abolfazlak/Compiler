@@ -1,3 +1,5 @@
+package compiler;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
@@ -8,25 +10,6 @@ public class PreProcessor {
     public String removeComments(String input) {
         Pattern comment = Pattern.compile("(/\\*(?:.|[\\n\\r])*?\\*/)|(//.*)");
         Matcher matcher = comment.matcher(input);
-        return matcher.replaceAll("");
-    }
-
-    public Matcher findDefine(String input){
-        Pattern define = Pattern.compile("[ \\t]*define[ \\t]+(\\S+)[ \\t]*((?:.*\\\\\\r?\\n)*.*)");
-        return define.matcher(input);
-    }
-
-    public Map<String, String> mapDefine (String input) {
-        Map<String, String> defineMap = new HashMap<>();
-        Matcher matcher = findDefine(input);
-
-        while (matcher.find()) {
-            defineMap.put(matcher.group(1), matcher.group(2));
-        }
-        return defineMap;
-    }
-    public String removeDefine (String input){
-        Matcher matcher = findDefine(input);
         return matcher.replaceAll("");
     }
 
@@ -41,5 +24,22 @@ public class PreProcessor {
             }
         });
         return out.toString();
+    }
+    public Matcher findDefine(String input){
+        Pattern define = Pattern.compile("[ \\t]*define[ \\t]+(\\S+)[ \\t]*((?:.*\\\\\\r?\\n)*.*)");
+        return define.matcher(input);
+    }
+    public Map<String, String> mapDefine (String input) {
+        Map<String, String> defineMap = new HashMap<>();
+        Matcher matcher = findDefine(input);
+
+        while (matcher.find()) {
+            defineMap.put(matcher.group(1), matcher.group(2));
+        }
+        return defineMap;
+    }
+    public String removeDefine (String input){
+        Matcher matcher = findDefine(input);
+        return matcher.replaceAll("");
     }
 }

@@ -9,10 +9,10 @@ public class Scanner {
     Pattern _special = Pattern.compile("^\\b(?:__func__|__line__|bool|break|btoi|class|continue|define|double|dtoi|else|for|if|import|int|itob|itod|new|NewArray|null|Print|private|public|ReadInteger|ReadLine|return|string|this|void|while)\\b");
     Pattern _bool = Pattern.compile("^\\b(true|false)\\b");
     Pattern _id = Pattern.compile("^\\b([a-zA-Z]+\\w*)\\b");
-    Pattern _int10 = Pattern.compile("^\\b(\\d+)\\b");
-    Pattern _int16 = Pattern.compile("^\\b(0[xX][A-Fa-f0-9]+)\\b");
+    Pattern _int10 = Pattern.compile("^(\\d+)");
+    Pattern _int16 = Pattern.compile("^(0[xX][A-Fa-f0-9]+)");
     Pattern _double = Pattern.compile("^(\\d+\\.\\d*)");
-    Pattern _SN = Pattern.compile("^(\\d+\\.\\d*[eE]\\s*[+-]?\\s*\\d)");
+    Pattern _SN = Pattern.compile("^(\\d+\\.\\d*[eE][+-]?\\d+)");
     Pattern _operators = Pattern.compile("^((\\+=?)|(-=?)|(\\*=?)|(/=?)|%|<=?|>=?|==?|!=?|(&&)|(\\|\\|)|;|,|(\\.)|(\\[)|(])|(\\()|(\\))|(\\{)|(}))");
     Pattern _string = Pattern.compile("^(\"((\\\\\")*.*?(\\\\\")*)*(.*?)((\\\\\")*.*?(\\\\\")*)*\")");
     Pattern fallback = Pattern.compile("[\\s\\S]");
@@ -79,11 +79,11 @@ public class Scanner {
         addPatternToMap(TokenType.T_SPECIAL, _special, tokenMap);
         addPatternToMap(TokenType.T_BOOLEANLITERAL, _bool, tokenMap);
         addPatternToMap(TokenType.T_ID, _id, tokenMap);
-        addPatternToMap(TokenType.T_DOUBLELITERAL, _double, tokenMap);
         addPatternToMap(TokenType.T_DOUBLELITERALSN, _SN, tokenMap);
-        addPatternToMap(TokenType.T_INT10LITERAL, _int10, tokenMap);
-        addPatternToMap(TokenType.T_INT16LITERAL, _int16, tokenMap);
         addPatternToMap(TokenType.T_OPERATORS, _operators, tokenMap);
+        addPatternToMap(TokenType.T_DOUBLELITERAL, _double, tokenMap);
+        addPatternToMap(TokenType.T_INT16LITERAL, _int16, tokenMap);
+        addPatternToMap(TokenType.T_INT10LITERAL, _int10, tokenMap);
         addPatternToMap(TokenType.T_UNKNOWN, fallback, tokenMap);
     }
 

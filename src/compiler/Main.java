@@ -12,4 +12,8 @@ public class Main {
         String input = Files.readString(inputFile.toPath(), StandardCharsets.US_ASCII);
         return String.join("\n", s.filterTokens(input));
     }
+
+    public static void main(String[] args) throws Exception {
+        System.out.println(run(new File("G:\\Compiler\\CompilerProject\\src\\compiler\\a.txt")));
+    }
 }

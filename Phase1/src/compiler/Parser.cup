@@ -1,0 +1,739 @@
+import java_cup.runtime.*;
+
+parser code {:
+    private Scanner scanner;
+    protected RootNode rootNode;
+
+    public Parser (Scanner scanner){
+        this.scanner = scanner;
+    }
+
+    void setRoot(RootNode rn) { this.rootNode = rn; }
+    public RootNode getRoot() { return this.rootNode; }
+:}
+scan with {:return scanner.next_token();:}
+
+/* terminals */
+
+//reserved Words terminals
+terminal DEFINE, IMPORT, VOID, INT, DOUBLE, BOOL, STRING, CLASS, NULL, THIS, FOR, WHILE, IF, ELSE, RETURN, BREAK, NEW, NEWARRAY, PRINT;
+terminal READINTEGER, READLINE,DTOI,ITOD, BTOI,ITOB, FUNC, LINE, PRIVATE, PUBLIC, CONTINUE;
+
+
+//condition Symbols
+terminal EQUAL, NOTEQUAL, LESSEQUAL, LESS, GREATER, GREATEREQUAL, EQUALEQUAL;
+terminal AND,NOT,OR;
+
+//Arithmitic symbols
+terminal DIVIDE, MULTIPLY, PLUS, MINUS, MOD, ADDITIONASSIGNMENT, SUBTRACTIONASSIGNMENT, MULTIPLICATIONASSIGNMENT, AUGMENTEDASSIGNMENT;
+
+//other symbols
+terminal SEMI, COMMA, DOT, LEFTPARENTHESES, RIGHTPARENTHESES, LEFTCURLYBRACKET, RIGHTCURLYBRACKET;
+terminal LEFTSQUAREBRACKET, RIGHTSQUAREBRACKET, LEFTRIGHTSQUAREBRACKET;
+
+// identifier
+terminal String ID;
+
+//constants
+terminal String  intConstant;
+terminal String  boolConstant;
+terminal String  stringConstant;
+terminal String  doubleConstant;
+
+terminal DEFINESTMT;
+
+/**/
+
+/* Non terminals */
+
+nonterminal Node program, macro, decl, lValue, constant, call, actuals, ident;
+nonterminal Node variableDecl, functionDecl, classDecl;
+nonterminal Node variable, type, formals, accessMode, stmtBlock, field, stmt, expr;
+nonterminal Node field_star, expr_plus, statement1, statement2, statement3;
+nonterminal Node ifStmt , whileStmt , forStmt, breakStmt , continueStmt ,returnStmt ,printStmt, elseStmt;
+/**/
+
+/* precedence  */
+precedence left ID;
+precedence left COMMA;
+precedence left ELSE;
+precedence left EQUAL;
+precedence left ADDITIONASSIGNMENT,SUBTRACTIONASSIGNMENT, MULTIPLICATIONASSIGNMENT, AUGMENTEDASSIGNMENT;
+precedence left OR;
+precedence left AND;
+precedence left EQUALEQUAL, NOTEQUAL;
+precedence left LESS, LESSEQUAL, GREATER, GREATEREQUAL;
+precedence left MINUS,PLUS;
+precedence left DIVIDE,MOD,MULTIPLY;
+precedence left NOT;
+precedence left LEFTPARENTHESES, LEFTSQUAREBRACKET;
+
+/**/
+start with program;
+
+program  ::= statement1:s
+            {:
+                RESULT = s;
+            :}
+           | macro program:p
+            {:
+                RESULT = p;
+            :}           ;
+
+statement1 ::= statement1:s decl:d
+            {:
+                RESULT = s;
+                RESULT.addChild(d);
+                d.setParent(RESULT);
+            :}
+           | decl:d
+            {:
+                RESULT = new RootNode();
+                RESULT.addChild(d);
+                d.setParent(RESULT);
+                setRoot((RootNode) RESULT);
+            :}
+           ;
+
+macro ::= IMPORT stringConstant
+        | DEFINE ident DEFINESTMT
+        ;
+decl ::= variableDecl:v
+         {: RESULT = v;:}
+       | functionDecl:f
+         {: RESULT = f;:}
+       | classDecl:c
+         {: RESULT = c;:};
+
+variableDecl ::= variable:v SEMI
+                {: RESULT = v;:}
+;
+variable ::= type:t ident:i
+             {:
+                RESULT = new SimpleNode(NodeType.VARIABLE_DECLARATION);
+                RESULT.addChild(t);
+                RESULT.addChild(i);
+                t.setParent(RESULT);
+                i.setParent(RESULT);
+             :};
+
+type ::= INT
+       {: RESULT = new PrimitiveNode(NodeType.INT_TYPE, PrimitiveType.INT); :}
+       | DOUBLE
+       {: RESULT = new PrimitiveNode(NodeType.DOUBLE_TYPE, PrimitiveType.DOUBLE); :}
+       | BOOL
+       {: RESULT = new PrimitiveNode(NodeType.BOOLEAN_TYPE, PrimitiveType.BOOL); :}
+       | STRING
+       {: RESULT = new PrimitiveNode(NodeType.STRING_TYPE, PrimitiveType.STRING); :}
+       | ident:i
+        {: RESULT = i; :}
+       | type:t LEFTRIGHTSQUAREBRACKET
+       {:
+            RESULT = t;
+            Node n = new SimpleNode(NodeType.ARRAY_TYPE);
+            RESULT.addChild(n);
+            n.setParent(RESULT);
+       :};
+
+functionDecl ::= type:t ident:i LEFTPARENTHESES formals:f RIGHTPARENTHESES stmtBlock:s
+                    {:
+                        RESULT = new SimpleNode(NodeType.METHOD_DECLARATION);
+                        RESULT.addChild(t, i, f, s);
+                        t.setParent(RESULT);
+                        i.setParent(RESULT);
+                        f.setParent(RESULT);
+                        s.setParent(RESULT);
+                    :}
+               | VOID ident:i LEFTPARENTHESES formals:f RIGHTPARENTHESES stmtBlock:s
+                    {:
+                        Node n = new PrimitiveNode(NodeType.VOID, PrimitiveType.VOID);
+                        RESULT = new SimpleNode(NodeType.METHOD_DECLARATION);
+                        RESULT.addChild(n, i, f, s);
+                        n.setParent(RESULT);
+                        i.setParent(RESULT);
+                        f.setParent(RESULT);
+                        s.setParent(RESULT);
+                    :}
+               ;
+
+formals ::=  variable:v COMMA formals:f
+             {:
+                RESULT = f;
+                Node n = new SimpleNode(NodeType.ARGUMENT);
+                RESULT.addChild(n);
+                n.setParent(RESULT);
+                n.addChild(v);
+                v.setParent(n);
+             :}
+           | variable:v
+             {:
+                RESULT = new SimpleNode(NodeType.ARGUMENTS);
+                Node n = new SimpleNode(NodeType.ARGUMENT);
+                RESULT.addChild(n);
+                n.setParent(RESULT);
+                n.addChild(v);
+                v.setParent(n);
+             :}
+           |
+           {:
+                RESULT = new SimpleNode(NodeType.EMPTY_STATEMENT);
+           :}
+           ;
+
+classDecl ::= CLASS ident:i LEFTCURLYBRACKET field_star:fs  RIGHTCURLYBRACKET
+            {:
+                RESULT = new SimpleNode(NodeType.CLASS_DECL);
+                RESULT.addChild(i);
+                RESULT.addChild(fs);
+                i.setParent(RESULT);
+                fs.setParent(RESULT);
+            :} ;
+
+field_star ::= field_star:fs field:f
+            {:
+                RESULT = fs;
+                RESULT.addChild(f);
+                f.setParent(RESULT);
+            :}
+             |
+               {:RESULT = new SimpleNode(NodeType.EMPTY_STATEMENT);:}
+             ;
+
+field ::= accessMode:a variableDecl:v
+            {:
+                RESULT = new SimpleNode(NodeType.FIELD_DECLARATION);
+                RESULT.addChild(a);
+                RESULT.addChild(v);
+                a.setParent(RESULT);
+                v.setParent(RESULT);
+            :}
+        | accessMode:a functionDecl:f
+            {:
+                RESULT = new SimpleNode(NodeType.FIELD_DECLARATION);
+                RESULT.addChild(a);
+                RESULT.addChild(f);
+                a.setParent(RESULT);
+                f.setParent(RESULT);
+            :}
+        ;
+
+accessMode ::= PRIVATE
+            {:
+                RESULT = new SimpleNode(NodeType.METHOD_ACCESS);
+                Node n = new SimpleNode(NodeType.PRIVATE_ACCESS);
+                RESULT.addChild(n);
+                n.setParent(RESULT);
+            :}
+               | PUBLIC
+            {:
+                RESULT = new SimpleNode(NodeType.METHOD_ACCESS);
+                Node n = new SimpleNode(NodeType.PUBLIC_ACCESS);
+                RESULT.addChild(n);
+                n.setParent(RESULT);
+            :}
+               |
+               {:RESULT = new SimpleNode(NodeType.EMPTY_STATEMENT);:};
+
+stmtBlock ::= LEFTCURLYBRACKET statement2:s2 statement3:s3 RIGHTCURLYBRACKET
+            {:
+                RESULT = new SimpleNode(NodeType.BLOCK);
+                RESULT.addChild(s2, s3);
+                s2.setParent(RESULT);
+                s3.setParent(RESULT);
+            :};
+
+statement2 ::=  statement2:s2 variableDecl:v
+             {:
+                   RESULT = s2;
+                   RESULT.addChild(v);
+                   v.setParent(RESULT);
+             :}
+            |
+             {:
+                   RESULT = new SimpleNode(NodeType.MULTIPLE_VARIABLE_DECLARATION);
+             :};
+
+statement3 ::= stmt:s statement3:s3
+                {:
+                    RESULT = s;
+                    RESULT.addChild(s3);
+                    s3.setParent(RESULT);
+                :}
+            |
+            {: RESULT = new SimpleNode(NodeType.EMPTY_STATEMENT);:};
+
+stmt ::= expr: e SEMI
+          {: RESULT = e;:}
+         | SEMI
+          {: RESULT = new SimpleNode(NodeType.EMPTY_STATEMENT);:}
+         | elseStmt:e
+         {: RESULT = e;:}
+         | ifStmt:e
+         {: RESULT = e;:}
+         | whileStmt:e
+         {: RESULT = e;:}
+         | forStmt:e
+         {: RESULT = e;:}
+         | breakStmt:e
+         {: RESULT = e;:}
+         | continueStmt:e
+         {: RESULT = e;:}
+         | returnStmt:e
+         {: RESULT = e;:}
+         | printStmt:e
+         {: RESULT = e;:}
+         | stmtBlock:e
+         {: RESULT = e;:};
+
+ifStmt ::= IF LEFTPARENTHESES expr:e RIGHTPARENTHESES stmt:s elseStmt:es
+          {:
+                RESULT = new SimpleNode(NodeType.IF_STATEMENT);
+                RESULT.addChild(e, s, es);
+                e.setParent(RESULT);
+                s.setParent(RESULT);
+          :}
+         | IF LEFTPARENTHESES expr:e RIGHTPARENTHESES stmt:s
+          {:
+                RESULT = new SimpleNode(NodeType.IF_STATEMENT);
+                RESULT.addChild(e, s);
+                e.setParent(RESULT);
+                s.setParent(RESULT);
+          :};
+
+elseStmt ::= ELSE stmt:s
+           {:
+                RESULT = new SimpleNode(NodeType.ELSE_STATEMENT);
+                RESULT.addChild(s);
+                s.setParent(RESULT);
+           :};
+
+whileStmt::= WHILE LEFTPARENTHESES expr:e RIGHTPARENTHESES stmt:s
+           {:
+                RESULT = new SimpleNode(NodeType.WHILE_STATEMENT);
+                RESULT.addChild(e, s);
+                e.setParent(RESULT);
+                s.setParent(RESULT);
+           :}   ;
+
+forStmt ::= FOR LEFTPARENTHESES SEMI expr:e SEMI RIGHTPARENTHESES stmt:s
+           {:
+                RESULT = new SimpleNode(NodeType.FOR_STATEMENT);
+                RESULT.addChild(e, s);
+                e.setParent(RESULT);
+                s.setParent(RESULT);
+           :}
+          | FOR LEFTPARENTHESES expr:e SEMI expr:ex SEMI RIGHTPARENTHESES stmt:s
+           {:
+                RESULT = new SimpleNode(NodeType.FOR_STATEMENT);
+                RESULT.addChild(e, ex, s);
+                e.setParent(RESULT);
+                ex.setParent(RESULT);
+                s.setParent(RESULT);
+           :}
+          | FOR LEFTPARENTHESES  SEMI expr:e SEMI expr:ex RIGHTPARENTHESES stmt:s
+           {:
+                RESULT = new SimpleNode(NodeType.FOR_STATEMENT);
+                RESULT.addChild(e, ex, s);
+                e.setParent(RESULT);
+                ex.setParent(RESULT);
+                s.setParent(RESULT);
+           :}
+          | FOR LEFTPARENTHESES expr:e SEMI expr:ex SEMI expr:exp RIGHTPARENTHESES stmt:s
+           {:
+                RESULT = new SimpleNode(NodeType.FOR_STATEMENT);
+                RESULT.addChild(e, ex, exp, s);
+                e.setParent(RESULT);
+                ex.setParent(RESULT);
+                exp.setParent(RESULT);
+                s.setParent(RESULT);
+           :};
+
+returnStmt ::= RETURN SEMI
+                {:
+                    RESULT = new SimpleNode(NodeType.RETURN_STATEMENT);
+                :}
+             | RETURN expr:e SEMI
+                {:
+                    RESULT = new SimpleNode(NodeType.RETURN_STATEMENT);
+                    RESULT.addChild(e);
+                :}             ;
+
+breakStmt ::= BREAK SEMI
+              {: RESULT = new SimpleNode(NodeType.BREAK_STATEMENT); :};
+
+continueStmt ::= CONTINUE SEMI
+              {: RESULT = new SimpleNode(NodeType.CONTINUE_STATEMENT); :};
+
+printStmt ::= PRINT LEFTPARENTHESES expr_plus:ep RIGHTPARENTHESES SEMI
+              {:
+                     RESULT = new SimpleNode(NodeType.PRINT_STATEMENT);
+                     RESULT.addChild(ep);
+                     ep.setParent(RESULT);
+              :};
+expr_plus ::= expr_plus:ep COMMA expr:e
+              {:
+                    RESULT = ep;
+                    RESULT.addChild(e);
+                    e.setParent(RESULT);
+              :}
+            | expr:e
+              {:
+                    RESULT = new ExpressionNode();
+                    RESULT.addChild(e);
+                    e.setParent(RESULT);
+               :}
+            ;
+
+
+expr ::=  lValue:l EQUAL expr:e
+       {:
+           RESULT = new SimpleNode(NodeType.ASSIGN);
+           RESULT.addChild(l, e);
+           l.setParent(RESULT);
+           e.setParent(RESULT);
+       :}
+      | lValue:l ADDITIONASSIGNMENT expr:e
+       {:
+           RESULT = new SimpleNode(NodeType.ADDITIONASSIGNMENT);
+           RESULT.addChild(l, e);
+           l.setParent(RESULT);
+           e.setParent(RESULT);
+       :}
+      | lValue:l SUBTRACTIONASSIGNMENT expr:e
+       {:
+           RESULT = new SimpleNode(NodeType.SUBTRACTIONASSIGNMENT);
+           RESULT.addChild(l, e);
+           l.setParent(RESULT);
+           e.setParent(RESULT);
+       :}
+      | lValue:l MULTIPLICATIONASSIGNMENT expr:e
+       {:
+           RESULT = new SimpleNode(NodeType.MULTIPLICATIONASSIGNMENT);
+           RESULT.addChild(l, e);
+           l.setParent(RESULT);
+           e.setParent(RESULT);
+       :}
+      | lValue:l AUGMENTEDASSIGNMENT expr:e
+       {:
+           RESULT = new SimpleNode(NodeType.AUGMENTEDASSIGNMENT);
+           RESULT.addChild(l, e);
+           l.setParent(RESULT);
+           e.setParent(RESULT);
+       :}
+      | constant:c
+       {:
+           RESULT = new ExpressionNode();
+           RESULT.addChild(c);
+           c.setParent(RESULT);
+       :}
+      | lValue:l
+       {:
+           RESULT = new ExpressionNode();
+           RESULT.addChild(l);
+           l.setParent(RESULT);
+       :}
+      | THIS
+       {:
+           RESULT = new ExpressionNode();
+           Node n = new SimpleNode(NodeType.THIS);
+           RESULT.addChild(n);
+           n.setParent(RESULT);
+       :}
+      | call:c
+       {:
+          RESULT = new ExpressionNode();
+          RESULT.addChild(c);
+          c.setParent(RESULT);
+       :}
+      | LEFTPARENTHESES expr:e RIGHTPARENTHESES
+        {: RESULT = e; :}
+      | expr:e PLUS expr:ex
+        {:
+            RESULT = new ExpressionNode();
+            Node n = new SimpleNode(NodeType.ADDITION);
+            n.addChild(e, ex);
+            RESULT.addChild(n);
+            n.setParent(RESULT);
+            e.setParent(n);
+            ex.setParent(n);
+        :}
+      | expr:e MINUS expr:ex
+        {:
+            RESULT = new ExpressionNode();
+            Node n = new SimpleNode(NodeType.UNARY_MINUS);
+            n.addChild(e, ex);
+            RESULT.addChild(n);
+            n.setParent(RESULT);
+            e.setParent(n);
+            ex.setParent(n);
+        :}
+      | expr:e MULTIPLY expr:ex
+       {:
+            RESULT = new ExpressionNode();
+            Node n = new SimpleNode(NodeType.MULTIPLICATION);
+            n.addChild(e, ex);
+            RESULT.addChild(n);
+            n.setParent(RESULT);
+            e.setParent(n);
+            ex.setParent(n);
+        :}
+      | expr:e DIVIDE expr:ex
+       {:
+            RESULT = new ExpressionNode();
+            Node n = new SimpleNode(NodeType.DIVISION);
+            n.addChild(e, ex);
+            RESULT.addChild(n);
+            n.setParent(RESULT);
+            e.setParent(n);
+            ex.setParent(n);
+        :}
+      | expr:e MOD expr:ex
+       {:
+            RESULT = new ExpressionNode();
+            Node n = new SimpleNode(NodeType.MOD);
+            n.addChild(e, ex);
+            RESULT.addChild(n);
+            n.setParent(RESULT);
+            e.setParent(n);
+            ex.setParent(n);
+        :}
+      | expr:e LESS expr:ex
+       {:
+            RESULT = new ExpressionNode();
+            Node n = new SimpleNode(NodeType.LESS_THAN);
+            n.addChild(e, ex);
+            RESULT.addChild(n);
+            n.setParent(RESULT);
+            e.setParent(n);
+            ex.setParent(n);
+        :}
+      | expr:e LESSEQUAL expr:ex
+       {:
+            RESULT = new ExpressionNode();
+            Node n = new SimpleNode(NodeType.LESS_THAN_OR_EQUAL);
+            n.addChild(e, ex);
+            RESULT.addChild(n);
+            n.setParent(RESULT);
+            e.setParent(n);
+            ex.setParent(n);
+        :}
+      | expr:e GREATER expr:ex
+       {:
+            RESULT = new ExpressionNode();
+            Node n = new SimpleNode(NodeType.GREATER_THAN);
+            n.addChild(e, ex);
+            RESULT.addChild(n);
+            n.setParent(RESULT);
+            e.setParent(n);
+            ex.setParent(n);
+        :}
+      | expr:e GREATEREQUAL expr:ex
+       {:
+            RESULT = new ExpressionNode();
+            Node n = new SimpleNode(NodeType.GREATER_THAN_OR_EQUAL);
+            n.addChild(e, ex);
+            RESULT.addChild(n);
+            n.setParent(RESULT);
+            e.setParent(n);
+            ex.setParent(n);
+        :}
+      | expr:e EQUALEQUAL expr:ex
+       {:
+            RESULT = new ExpressionNode();
+            Node n = new SimpleNode(NodeType.EQUAL);
+            n.addChild(e, ex);
+            RESULT.addChild(n);
+            n.setParent(RESULT);
+            e.setParent(n);
+            ex.setParent(n);
+        :}
+      | expr:e NOTEQUAL expr:ex
+       {:
+            RESULT = new ExpressionNode();
+            Node n = new SimpleNode(NodeType.NOT_EQUAL);
+            n.addChild(e, ex);
+            RESULT.addChild(n);
+            n.setParent(RESULT);
+            e.setParent(n);
+            ex.setParent(n);
+        :}
+      | expr:e AND expr:ex
+       {:
+            RESULT = new ExpressionNode();
+            Node n = new SimpleNode(NodeType.BOOLEAN_AND);
+            n.addChild(e, ex);
+            RESULT.addChild(n);
+            n.setParent(RESULT);
+            e.setParent(n);
+            ex.setParent(n);
+        :}
+      | expr:e OR expr:ex
+       {:
+            RESULT = new ExpressionNode();
+            Node n = new SimpleNode(NodeType.BOOLEAN_OR);
+            n.addChild(e, ex);
+            RESULT.addChild(n);
+            n.setParent(RESULT);
+            e.setParent(n);
+            ex.setParent(n);
+        :}
+      | MINUS expr:e
+       {:
+            RESULT = new ExpressionNode();
+            Node n = new SimpleNode(NodeType.UNARY_MINUS);
+            n.addChild(e);
+            RESULT.addChild(n);
+            n.setParent(RESULT);
+            e.setParent(n);
+       :}
+      | NOT expr:e
+        {:
+            RESULT = new ExpressionNode();
+            Node n = new SimpleNode(NodeType.BOOLEAN_NOT);
+            n.addChild(e);
+            RESULT.addChild(n);
+            n.setParent(RESULT);
+            e.setParent(n);
+        :}
+      | READINTEGER LEFTPARENTHESES RIGHTPARENTHESES
+        {:
+            RESULT = new ExpressionNode();
+            Node n = new SimpleNode(NodeType.READ_INTEGER);
+            RESULT.addChild(n);
+            n.setParent(RESULT);
+        :}
+      | READLINE LEFTPARENTHESES RIGHTPARENTHESES
+        {:
+            RESULT = new ExpressionNode();
+            Node n = new SimpleNode(NodeType.READ_LINE);
+            RESULT.addChild(n);
+            n.setParent(RESULT);
+        :}
+      | NEW ident:i
+      {:
+           RESULT = new ExpressionNode();
+           Node n = new SimpleNode(NodeType.NEW_IDENTIFIER);
+           n.addChild(i);
+           RESULT.addChild(n);
+           n.setParent(RESULT);
+           i.setParent(n);
+      :}
+      | NEWARRAY LEFTPARENTHESES expr:e COMMA type:t RIGHTPARENTHESES
+      {:
+           RESULT = new ExpressionNode();
+           Node n = new SimpleNode(NodeType.ARRAY_DECLARATION);
+           n.addChild(e, t);
+           RESULT.addChild(t);
+           n.setParent(RESULT);
+           e.setParent(n);
+           t.setParent(n);
+      :}
+      | ITOD LEFTPARENTHESES expr:e RIGHTPARENTHESES
+        {:
+            RESULT = new ExpressionNode();
+            Node n = new SimpleNode(NodeType.ITOD);
+            n.addChild(e);
+            RESULT.addChild(n);
+            n.setParent(RESULT);
+            e.setParent(n);
+        :}
+      | DTOI LEFTPARENTHESES expr:e RIGHTPARENTHESES
+        {:
+            RESULT = new ExpressionNode();
+            Node n = new SimpleNode(NodeType.DTOI);
+            n.addChild(e);
+            RESULT.addChild(n);
+            n.setParent(RESULT);
+            e.setParent(n);
+        :}
+      | ITOB LEFTPARENTHESES expr:e RIGHTPARENTHESES
+        {:
+            RESULT = new ExpressionNode();
+            Node n = new SimpleNode(NodeType.ITOB);
+            n.addChild(e);
+            RESULT.addChild(n);
+            n.setParent(RESULT);
+            e.setParent(n);
+        :}
+      | BTOI LEFTPARENTHESES expr:e RIGHTPARENTHESES
+        {:
+            RESULT = new ExpressionNode();
+            Node n = new SimpleNode(NodeType.BTOI);
+            n.addChild(e);
+            RESULT.addChild(n);
+            n.setParent(RESULT);
+            e.setParent(n);
+        :}
+      | LINE
+       {:
+          RESULT = new ExpressionNode();
+          Node n = new SimpleNode(NodeType.LINE);
+          RESULT.addChild(n);
+          n.setParent(RESULT);
+       :}
+      | FUNC
+       {:
+          RESULT = new ExpressionNode();
+          Node n = new SimpleNode(NodeType.FUNC);
+          RESULT.addChild(n);
+          n.setParent(RESULT);
+       :}
+      ;
+
+lValue ::= ident:i
+             {: RESULT = i; :}
+           |expr:e DOT ident:i
+            {:
+                    RESULT = new SimpleNode(NodeType.FIELD);
+                    RESULT.addChild(e, i);
+                    e.setParent(RESULT);
+                    i.setParent(RESULT);
+            :}
+           |expr:e LEFTSQUAREBRACKET expr:ex RIGHTSQUAREBRACKET
+            {:
+                    RESULT = new SimpleNode(NodeType.ARRAY_USE);
+                    RESULT.addChild(e, ex);
+                    e.setParent(RESULT);
+                    ex.setParent(RESULT);
+            :}
+            ;
+call ::= ident:i LEFTPARENTHESES actuals:a RIGHTPARENTHESES
+            {:
+                    RESULT = new SimpleNode(NodeType.FUNCTION_CALL);
+                    RESULT.addChild(i, a);
+                    i.setParent(RESULT);
+                    a.setParent(RESULT);
+            :}
+        |expr:e DOT ident:i LEFTPARENTHESES actuals:a RIGHTPARENTHESES
+            {:
+                    RESULT = new SimpleNode(NodeType.FUNCTION_CALL);
+                    RESULT.addChild(e, i, a);
+                    e.setParent(RESULT);
+                    i.setParent(RESULT);
+                    a.setParent(RESULT);
+            :}
+         ;
+
+actuals ::= expr_plus:ep
+                {:
+                    RESULT = new SimpleNode(NodeType.PARAMETERS);
+                    RESULT.addChild(ep);
+                    ep.setParent(RESULT);
+                :}
+            |
+                {:RESULT = new SimpleNode(NodeType.EMPTY_STATEMENT);:};
+
+constant ::= intConstant:i
+                {: RESULT = new IntegerLiteralNode(i); :}
+             |doubleConstant:d
+                {: RESULT = new DoubleLiteralNode(d); :}
+             |boolConstant:b
+                {: RESULT = new BooleanLiteralNode(b); :}
+             |stringConstant:s
+                {: RESULT = new StringLiteralNode(s); :}
+             |NULL
+                {: RESULT = new SimpleNode(NodeType.NULL_LITERAL); :};
+
+ident  ::=    ID:i
+                        {:RESULT = new IdentifierNode(i); :};
+
